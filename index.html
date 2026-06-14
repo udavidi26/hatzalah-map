@@ -106,6 +106,7 @@ body { font-family:Arial,sans-serif; display:flex; flex-direction:column; height
   <button class="tbtn err-off" id="btn-err" onclick="toggleFailPanel()" style="display:none">&#9888; Failed: <b id="err-badge">0</b></button>
   <input id="search" type="text" placeholder="Search name..." oninput="doSearch(this.value)">
   <button class="tbtn" style="border-color:#444;color:#aaa" onclick="clearAndRegeocode()">&#8635; Re-geocode</button>
+  <button class="tbtn" style="border-color:#27ae60;color:#27ae60" onclick="downloadFile()">&#11015; Download Map</button>
   <span id="fb-status">Connecting...</span>
   <div id="stats">Members: <b id="mc">0</b> &nbsp;ALS: <b id="alsc">0</b> &nbsp;Applicants: <b id="ac">0</b> &nbsp;Loaded: <b id="gc">0</b>/<b>457</b></div>
 </div>
@@ -467,6 +468,15 @@ function runQueue(){
 function startGeocode(){
   document.getElementById('overlay').style.display='flex';
   MEMBERS.concat(APPLICANTS).forEach(function(p){ queueGeocode(p); });
+}
+
+function downloadFile(){
+  var html = document.documentElement.outerHTML;
+  var blob = new Blob([html], {type:'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'index.html';
+  a.click();
 }
 
 function clearAndRegeocode(){
