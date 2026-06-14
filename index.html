@@ -109,6 +109,7 @@ body { font-family:Arial,sans-serif; display:flex; flex-direction:column; height
   <button class="tbtn int-on" id="btn-int-layer" onclick="toggleLayer('int')" style="display:none">&#9733; Interview: <b id="int-badge">0</b></button>
   <button class="tbtn" id="btn-err" onclick="toggleFailPanel()" style="display:none">&#9888; Failed: <b id="err-badge">0</b></button>
   <input id="search" type="text" placeholder="Search name..." oninput="doSearch(this.value)">
+  <input id="addr-search" type="text" placeholder="🔍 Search address..." onkeydown="if(event.key==='Enter')searchAddress(this.value)" style="padding:5px 10px;border-radius:16px;border:none;background:#2a2a3e;color:white;font-size:12px;width:170px;outline:none;">
   <button class="tbtn" id="btn-edit" onclick="toggleEdit()">&#128274; View only</button>
   <button class="tbtn" onclick="downloadFile()" style="display:none" id="btn-dl">&#11015; Download</button>
   <button class="tbtn" onclick="clearAndRegeocode()" style="display:none" id="btn-rg">&#8635; Re-geocode</button>
@@ -123,6 +124,7 @@ body { font-family:Arial,sans-serif; display:flex; flex-direction:column; height
   <div class="lrow"><div class="ldot" style="background:#e53935"></div> ALS Member</div>
   <div class="lrow"><div class="ldot" style="background:#43A047"></div> Applicant</div>
   <div class="lrow"><div class="ldot" style="background:#FB8C00"></div> Consider for Interview</div>
+  <div class="lrow"><div class="ldot" style="background:#9C27B0"></div> Searched address (0.5mi radius)</div>
 </div>
 <div id="overlay">
   <div id="box">
@@ -200,6 +202,47 @@ function layerVisible(p){
   if(p.is_als) return showALS;
   if(p.type==='member') return showM;
   return showA;
+}
+
+var addrMarker=null, addrCircle=null;
+
+function searchAddress(addr){
+  addr=(addr||'').trim();
+  if(!addr){
+    if(addrMarker){addrMarker.setMap(null);addrMarker=null;}
+    if(addrCircle){addrCircle.setMap(null);addrCircle=null;}
+    return;
+  }
+  geocoder.geocode({address:addr},function(res,status){
+    if(status!=='OK'){showToast('Address not found');return;}
+    var loc=res[0].geometry.location;
+    var lat=loc.lat(),lng=loc.lng();
+    if(addrMarker)addrMarker.setMap(null);
+    if(addrCircle)addrCircle.setMap(null);
+    addrMarker=new google.maps.Marker({
+      position:{lat:lat,lng:lng},
+      map:map,
+      icon:{path:google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,scale:6,fillColor:'#9C27B0',fillOpacity:1,strokeColor:'white',strokeWeight:2},
+      title:'Searched: '+res[0].formatted_address,
+      zIndex:9999
+    });
+    // 0.5 mile = ~800 meters circle
+    addrCircle=new google.maps.Circle({
+      strokeColor:'#9C27B0',strokeOpacity:0.8,strokeWeight:2,
+      fillColor:'#9C27B0',fillOpacity:0.1,
+      map:map,center:{lat:lat,lng:lng},radius:805
+    });
+    map.setCenter({lat:lat,lng:lng});
+    map.setZoom(15);
+    // Count nearby
+    var R=6371000; // earth radius m
+    function dist(a,b,c,d){var p1=a*Math.PI/180,p2=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180;var h=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);return 2*R*Math.asin(Math.sqrt(h));}
+    var nearby=allData.filter(function(d){return dist(lat,lng,d.lat,d.lng)<=805;});
+    var m=nearby.filter(function(d){return d.person.type==='member'&&!d.person.is_als;}).length;
+    var als=nearby.filter(function(d){return d.person.is_als;}).length;
+    var a=nearby.filter(function(d){return d.person.type==='applicant';}).length;
+    showToast('Within 0.5 mi: '+m+' members, '+als+' ALS, '+a+' applicants');
+  });
 }
 
 function addPin(p,lat,lng){
